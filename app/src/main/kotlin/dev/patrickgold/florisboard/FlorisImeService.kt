@@ -40,6 +40,7 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.inline.InlinePresentationSpec
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -76,9 +77,7 @@ import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
 import dev.patrickgold.florisboard.app.FlorisAppActivity
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
-import dev.patrickgold.florisboard.app.devtools.DevtoolsOverlay
 import dev.patrickgold.florisboard.ime.ImeUiMode
-import dev.patrickgold.florisboard.ime.clipboard.ClipboardInputLayout
 import dev.patrickgold.florisboard.ime.core.SelectSubtypePanel
 import dev.patrickgold.florisboard.ime.core.isSubtypeSelectionShowing
 import dev.patrickgold.florisboard.ime.editor.EditorRange
@@ -87,17 +86,8 @@ import dev.patrickgold.florisboard.ime.input.InputFeedbackController
 import dev.patrickgold.florisboard.ime.input.LocalInputFeedbackController
 import dev.patrickgold.florisboard.ime.keyboard.FlorisImeSizing
 import dev.patrickgold.florisboard.ime.keyboard.ProvideKeyboardRowBaseHeight
-import dev.patrickgold.florisboard.ime.landscapeinput.LandscapeInputUiMode
 import dev.patrickgold.florisboard.ime.lifecycle.LifecycleInputMethodService
 import dev.patrickgold.florisboard.ime.media.MediaInputLayout
-import dev.patrickgold.florisboard.ime.nlp.NlpInlineAutofill
-import dev.patrickgold.florisboard.ime.onehanded.OneHandedMode
-import dev.patrickgold.florisboard.ime.onehanded.OneHandedPanel
-import dev.patrickgold.florisboard.ime.sheet.BottomSheetHostUi
-import dev.patrickgold.florisboard.ime.sheet.isBottomSheetShowing
-import dev.patrickgold.florisboard.ime.smartbar.ExtendedActionsPlacement
-import dev.patrickgold.florisboard.ime.smartbar.SmartbarLayout
-import dev.patrickgold.florisboard.ime.smartbar.quickaction.QuickActionsEditorPanel
 import dev.patrickgold.florisboard.ime.text.TextInputLayout
 import dev.patrickgold.florisboard.ime.theme.FlorisImeTheme
 import dev.patrickgold.florisboard.ime.theme.FlorisImeUi
@@ -256,7 +246,7 @@ class FlorisImeService : LifecycleInputMethodService() {
     private val prefs by FlorisPreferenceStore
     private val editorInstance by editorInstance()
     private val keyboardManager by keyboardManager()
-    private val nlpManager by nlpManager()
+    // NLP manager removed
     private val subtypeManager by subtypeManager()
     private val themeManager by themeManager()
 
@@ -360,9 +350,7 @@ class FlorisImeService : LifecycleInputMethodService() {
         if (info == null) return
         val editorInfo = FlorisEditorInfo.wrap(info)
         activeState.batchEdit {
-            if (activeState.imeUiMode != ImeUiMode.CLIPBOARD || prefs.clipboard.historyHideOnNextTextField.get()) {
-                activeState.imeUiMode = ImeUiMode.TEXT
-            }
+            activeState.imeUiMode = ImeUiMode.TEXT
             activeState.isSelectionMode = editorInfo.initialSelection.isSelectionMode
             editorInstance.handleStartInputView(editorInfo, isRestart = restarting)
         }
@@ -405,7 +393,7 @@ class FlorisImeService : LifecycleInputMethodService() {
         flogInfo { "(no args)" }
         super.onFinishInput()
         editorInstance.handleFinishInput()
-        NlpInlineAutofill.clearInlineSuggestions()
+        // NlpInlineAutofill removed
     }
 
     override fun onWindowShown() {
@@ -441,11 +429,8 @@ class FlorisImeService : LifecycleInputMethodService() {
         if (config.orientation != Configuration.ORIENTATION_LANDSCAPE) {
             return false
         }
-        return when (prefs.keyboard.landscapeInputUiMode.get()) {
-            LandscapeInputUiMode.DYNAMICALLY_SHOW -> super.onEvaluateFullscreenMode()
-            LandscapeInputUiMode.NEVER_SHOW -> false
-            LandscapeInputUiMode.ALWAYS_SHOW -> true
-        }
+        // LandscapeInputUiMode removed - use default behavior
+        return super.onEvaluateFullscreenMode()
     }
 
     override fun updateFullscreenMode() {
@@ -458,11 +443,8 @@ class FlorisImeService : LifecycleInputMethodService() {
         if (info != null) {
             editorInstance.handleStartInputView(FlorisEditorInfo.wrap(info), isRestart = true)
         }
-        when (prefs.keyboard.landscapeInputUiMode.get()) {
-            LandscapeInputUiMode.DYNAMICALLY_SHOW -> super.onUpdateExtractingVisibility(info)
-            LandscapeInputUiMode.NEVER_SHOW -> isExtractViewShown = false
-            LandscapeInputUiMode.ALWAYS_SHOW -> isExtractViewShown = true
-        }
+        // LandscapeInputUiMode removed - use default behavior
+        super.onUpdateExtractingVisibility(info)
     }
 
     override fun setExtractViewShown(shown: Boolean) {
@@ -472,31 +454,11 @@ class FlorisImeService : LifecycleInputMethodService() {
 
     @RequiresApi(Build.VERSION_CODES.R)
     override fun onCreateInlineSuggestionsRequest(uiExtras: Bundle): InlineSuggestionsRequest? {
-        if (!prefs.smartbar.enabled.get() || !prefs.suggestion.api30InlineSuggestionsEnabled.get()) {
-            flogInfo(LogTopic.IMS_EVENTS) {
-                "Ignoring inline suggestions request because Smartbar and/or inline suggestions are disabled."
-            }
-            return null
+        // Smartbar and suggestion modules removed - inline suggestions disabled
+        flogInfo(LogTopic.IMS_EVENTS) {
+            "Ignoring inline suggestions request because Smartbar module was removed."
         }
-
-        flogInfo(LogTopic.IMS_EVENTS) { "Creating inline suggestions request" }
-        val stylesBundle = themeManager.createInlineSuggestionUiStyleBundle(this)
-        if (stylesBundle == null) {
-            flogWarning(LogTopic.IMS_EVENTS) { "Failed to retrieve inline suggestions style bundle" }
-            return null
-        }
-        val spec = InlinePresentationSpec.Builder(
-            InlineSuggestionUiSmallestSize,
-            InlineSuggestionUiBiggestSize,
-        ).run {
-            setStyle(stylesBundle)
-            build()
-        }
-
-        return InlineSuggestionsRequest.Builder(listOf(spec)).run {
-            setMaxSuggestionCount(InlineSuggestionsRequest.SUGGESTION_COUNT_UNLIMITED)
-            build()
-        }
+        return null
     }
 
     @RequiresApi(Build.VERSION_CODES.R)
@@ -505,7 +467,8 @@ class FlorisImeService : LifecycleInputMethodService() {
         flogInfo(LogTopic.IMS_EVENTS) {
             "Received inline suggestions response with ${inlineSuggestions.size} suggestion(s) provided."
         }
-        return NlpInlineAutofill.showInlineSuggestions(this, inlineSuggestions)
+        // NLP module removed - inline suggestions not supported
+        return false
     }
 
     override fun onComputeInsets(outInsets: Insets?) {
@@ -521,21 +484,15 @@ class FlorisImeService : LifecycleInputMethodService() {
         }
 
         val visibleTopY = inputWindowView.height - inputViewSize.height
-        val needAdditionalOverlay =
-            prefs.smartbar.enabled.get() &&
-                prefs.smartbar.layout.get() == SmartbarLayout.SUGGESTIONS_ACTIONS_EXTENDED &&
-                prefs.smartbar.extendedActionsExpanded.get() &&
-                prefs.smartbar.extendedActionsPlacement.get() == ExtendedActionsPlacement.OVERLAY_APP_UI &&
-                keyboardManager.activeState.imeUiMode == ImeUiMode.TEXT
-
+        // Smartbar removed - simplified insets calculation
         outInsets.contentTopInsets = visibleTopY
         outInsets.visibleTopInsets = visibleTopY
         outInsets.touchableInsets = Insets.TOUCHABLE_INSETS_REGION
         val left = 0
-        val top = if (keyboardManager.activeState.isBottomSheetShowing() || keyboardManager.activeState.isSubtypeSelectionShowing()) {
+        val top = if (keyboardManager.activeState.isSubtypeSelectionShowing()) {
             0
         } else {
-            visibleTopY - if (needAdditionalOverlay) FlorisImeSizing.Static.smartbarHeightPx else 0
+            visibleTopY
         }
         val right = inputViewSize.width
         val bottom = inputWindowView.height
@@ -590,13 +547,7 @@ class FlorisImeService : LifecycleInputMethodService() {
                     FlorisImeTheme {
                         // Do not apply system bar padding here yet, we want to draw it ourselves
                         Column(modifier = Modifier.fillMaxWidth()) {
-                            if (!(isFullscreenUiMode && isExtractUiShown)) {
-                                DevtoolsOverlay(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .weight(1f),
-                                )
-                            }
+                            // DevtoolsOverlay removed
                             ImeUi()
                             SystemUiIme()
                         }
@@ -656,37 +607,18 @@ class FlorisImeService : LifecycleInputMethodService() {
                         .safeDrawingPadding()
                         .padding(bottom = bottomOffset),
                 ) {
-                    val oneHandedMode by prefs.keyboard.oneHandedMode.observeAsState()
-                    val oneHandedModeEnabled by prefs.keyboard.oneHandedModeEnabled.observeAsState()
-                    val oneHandedModeScaleFactor by prefs.keyboard.oneHandedModeScaleFactor.observeAsState()
-                    val keyboardWeight = when {
-                        !oneHandedModeEnabled || configuration.isOrientationLandscape() -> 1f
-                        else -> oneHandedModeScaleFactor / 100f
-                    }
-                    if (oneHandedModeEnabled && oneHandedMode == OneHandedMode.END && configuration.isOrientationPortrait()) {
-                        OneHandedPanel(
-                            panelSide = OneHandedMode.START,
-                            weight = 1f - keyboardWeight,
-                        )
-                    }
+                    // OneHandedMode removed - simplified layout
                     CompositionLocalProvider(LocalLayoutDirection provides layoutDirection) {
                         Box(
                             modifier = Modifier
-                                .weight(keyboardWeight)
+                                .fillMaxWidth()
                                 .wrapContentHeight(),
                         ) {
                             when (state.imeUiMode) {
                                 ImeUiMode.TEXT -> TextInputLayout()
                                 ImeUiMode.MEDIA -> MediaInputLayout()
-                                ImeUiMode.CLIPBOARD -> ClipboardInputLayout()
                             }
                         }
-                    }
-                    if (oneHandedModeEnabled && oneHandedMode == OneHandedMode.START && configuration.isOrientationPortrait()) {
-                        OneHandedPanel(
-                            panelSide = OneHandedMode.END,
-                            weight = 1f - keyboardWeight,
-                        )
                     }
                 }
             }
@@ -740,21 +672,16 @@ class FlorisImeService : LifecycleInputMethodService() {
                 forceLayoutDirection = LayoutDirection.Ltr,
             ) {
                 FlorisImeTheme {
-                    BottomSheetHostUi(
-                        isShowing = state.isBottomSheetShowing() || state.isSubtypeSelectionShowing(),
-                        onHide = {
-                            if (state.isBottomSheetShowing()) {
-                                keyboardManager.activeState.isActionsEditorVisible = false
-                            }
-                            if (state.isSubtypeSelectionShowing()) {
-                                keyboardManager.activeState.isSubtypeSelectionVisible = false
-                            }
-                        },
-                    ) {
-                        if (state.isBottomSheetShowing()) {
-                            QuickActionsEditorPanel()
-                        }
-                        if (state.isSubtypeSelectionShowing()) {
+                    // BottomSheetHostUi removed - only show subtype selection
+                    if (state.isSubtypeSelectionShowing()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .wrapContentHeight()
+                                .clickable {
+                                    keyboardManager.activeState.isSubtypeSelectionVisible = false
+                                },
+                        ) {
                             SelectSubtypePanel()
                         }
                     }

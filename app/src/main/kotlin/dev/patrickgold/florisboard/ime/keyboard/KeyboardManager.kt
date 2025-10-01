@@ -273,7 +273,7 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
             SwipeAction.UNDO -> TextKeyData.UNDO
             SwipeAction.SHOW_INPUT_METHOD_PICKER -> TextKeyData.SYSTEM_INPUT_METHOD_PICKER
             SwipeAction.SHOW_SUBTYPE_PICKER -> TextKeyData.SHOW_SUBTYPE_PICKER
-            SwipeAction.SWITCH_TO_CLIPBOARD_CONTEXT -> TextKeyData.IME_UI_MODE_CLIPBOARD
+            SwipeAction.SWITCH_TO_CLIPBOARD_CONTEXT -> null
             SwipeAction.SWITCH_TO_PREV_SUBTYPE -> TextKeyData.IME_PREV_SUBTYPE
             SwipeAction.SWITCH_TO_NEXT_SUBTYPE -> TextKeyData.IME_NEXT_SUBTYPE
             SwipeAction.SWITCH_TO_PREV_KEYBOARD -> TextKeyData.SYSTEM_PREV_INPUT_METHOD
@@ -289,10 +289,7 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
         scope.launch {
             candidate.sourceProvider?.notifySuggestionAccepted(subtypeManager.activeSubtype, candidate)
         }
-        when (candidate) {
-            is ClipboardSuggestionCandidate -> editorInstance.commitClipboardItem(candidate.clipboardItem)
-            else -> editorInstance.commitCompletion(candidate)
-        }
+        editorInstance.commitCompletion(candidate)
     }
 
     fun commitGesture(word: String) {
@@ -712,17 +709,7 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
             KeyCode.CLIPBOARD_CUT -> editorInstance.performClipboardCut()
             KeyCode.CLIPBOARD_COPY -> editorInstance.performClipboardCopy()
             KeyCode.CLIPBOARD_PASTE -> editorInstance.performClipboardPaste()
-            KeyCode.CLIPBOARD_SELECT -> handleClipboardSelect()
             KeyCode.CLIPBOARD_SELECT_ALL -> editorInstance.performClipboardSelectAll()
-            KeyCode.CLIPBOARD_CLEAR_HISTORY -> clipboardManager.clearHistory()
-            KeyCode.CLIPBOARD_CLEAR_FULL_HISTORY -> clipboardManager.clearFullHistory()
-            KeyCode.CLIPBOARD_CLEAR_PRIMARY_CLIP -> {
-                if (prefs.clipboard.clearPrimaryClipAffectsHistoryIfUnpinned.get()) {
-                    clipboardManager.primaryClip?.let { clipboardManager.deleteClip(it, onlyIfUnpinned = true) }
-                }
-                clipboardManager.updatePrimaryClip(null)
-                appContext.showShortToastSync(R.string.clipboard__cleared_primary_clip)
-            }
             KeyCode.TOGGLE_COMPACT_LAYOUT -> scope.launch { toggleOneHandedMode() }
             KeyCode.COMPACT_LAYOUT_TO_LEFT -> scope.launch {
                 prefs.keyboard.oneHandedMode.set(OneHandedMode.START)
@@ -743,7 +730,6 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
             KeyCode.IME_NEXT_SUBTYPE -> subtypeManager.switchToNextSubtype()
             KeyCode.IME_UI_MODE_TEXT -> activeState.imeUiMode = ImeUiMode.TEXT
             KeyCode.IME_UI_MODE_MEDIA -> activeState.imeUiMode = ImeUiMode.MEDIA
-            KeyCode.IME_UI_MODE_CLIPBOARD -> activeState.imeUiMode = ImeUiMode.CLIPBOARD
             KeyCode.VOICE_INPUT -> FlorisImeService.switchToVoiceInputMethod()
             KeyCode.KANA_SWITCHER -> handleKanaSwitch()
             KeyCode.KANA_HIRA -> handleKanaHira()
@@ -977,20 +963,6 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
 
         override fun evaluateEnabled(data: KeyData): Boolean {
             return when (data.code) {
-                KeyCode.CLIPBOARD_COPY,
-                KeyCode.CLIPBOARD_CUT -> {
-                    state.isSelectionMode && editorInfo.isRichInputEditor
-                }
-                KeyCode.CLIPBOARD_PASTE -> {
-                    !androidKeyguardManager.let { it.isDeviceLocked || it.isKeyguardLocked }
-                        && clipboardManager.canBePasted(clipboardManager.primaryClip)
-                }
-                KeyCode.CLIPBOARD_CLEAR_PRIMARY_CLIP -> {
-                    clipboardManager.canBePasted(clipboardManager.primaryClip)
-                }
-                KeyCode.CLIPBOARD_SELECT_ALL -> {
-                    editorInfo.isRichInputEditor
-                }
                 KeyCode.TOGGLE_INCOGNITO_MODE -> when (prefs.suggestion.incognitoMode.get()) {
                     IncognitoMode.FORCE_OFF, IncognitoMode.FORCE_ON -> false
                     IncognitoMode.DYNAMIC_ON_OFF -> !editorInfo.imeOptions.flagNoPersonalizedLearning

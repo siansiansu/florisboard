@@ -17,7 +17,6 @@
 package dev.patrickgold.florisboard.app
 
 import android.content.Context
-import android.content.Intent
 import android.content.res.Configuration
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -29,38 +28,23 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
-import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import dev.patrickgold.florisboard.R
 import dev.patrickgold.florisboard.app.apptheme.FlorisAppTheme
-import dev.patrickgold.florisboard.app.ext.ExtensionImportScreenType
-import dev.patrickgold.florisboard.app.setup.NotificationPermissionState
 import dev.patrickgold.florisboard.appContext
-import dev.patrickgold.florisboard.cacheManager
 import dev.patrickgold.florisboard.lib.FlorisLocale
-import dev.patrickgold.florisboard.lib.compose.LocalPreviewFieldController
-import dev.patrickgold.florisboard.lib.compose.PreviewKeyboardField
-import dev.patrickgold.florisboard.lib.compose.rememberPreviewFieldController
-import dev.patrickgold.florisboard.lib.util.AppVersionUtils
-import dev.patrickgold.jetpref.datastore.model.observeAsState
-import dev.patrickgold.jetpref.datastore.ui.ProvideDefaultDialogPrefStrings
 import org.florisboard.lib.android.AndroidVersion
 import org.florisboard.lib.android.hideAppIcon
 import org.florisboard.lib.android.showAppIcon
 import org.florisboard.lib.compose.ProvideLocalizedResources
 import org.florisboard.lib.compose.conditional
-import org.florisboard.lib.compose.stringRes
 import org.florisboard.lib.kotlin.collectIn
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -72,18 +56,12 @@ enum class AppTheme(val id: String) {
     AMOLED_DARK("amoled_dark");
 }
 
-val LocalNavController = staticCompositionLocalOf<NavController> {
-    error("LocalNavController not initialized")
-}
-
 class FlorisAppActivity : ComponentActivity() {
     private val prefs by FlorisPreferenceStore
     private val appContext by appContext()
-    private val cacheManager by cacheManager()
     private var appTheme by mutableStateOf(AppTheme.AUTO)
     private var showAppIcon = true
     private var resourcesContext by mutableStateOf(this as Context)
-    private var intentToBeHandled by mutableStateOf<Intent?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Splash screen should be installed before calling super.onCreate()
@@ -112,14 +90,6 @@ class FlorisAppActivity : ComponentActivity() {
         val isModelLoaded = AtomicBoolean(false)
         appContext.preferenceStoreLoaded.collectIn(lifecycleScope) { loaded ->
             if (!loaded || isModelLoaded.getAndSet(true)) return@collectIn
-            // Check if android 13+ is running and the NotificationPermission is not set
-            if (AndroidVersion.ATLEAST_API33_T &&
-                prefs.internal.notificationPermissionState.get() == NotificationPermissionState.NOT_SET
-            ) {
-                // update pref value to show the setup screen again
-                prefs.internal.isImeSetUp.set(false)
-            }
-            AppVersionUtils.updateVersionOnInstallAndLastUse(this, prefs)
             setContent {
                 ProvideLocalizedResources(
                     resourcesContext,
@@ -132,7 +102,6 @@ class FlorisAppActivity : ComponentActivity() {
                     }
                 }
             }
-            onNewIntent(intent)
         }
     }
 
@@ -150,76 +119,18 @@ class FlorisAppActivity : ComponentActivity() {
         }
     }
 
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        setIntent(intent)
-
-        if (intent.action == Intent.ACTION_VIEW && intent.categories?.contains(Intent.CATEGORY_BROWSABLE) == true) {
-            intentToBeHandled = intent
-            return
-        }
-        if (intent.action == Intent.ACTION_VIEW && intent.data != null) {
-            intentToBeHandled = intent
-            return
-        }
-        if (intent.action == Intent.ACTION_SEND && intent.clipData != null) {
-            intentToBeHandled = intent
-            return
-        }
-        intentToBeHandled = null
-    }
-
     @Composable
     private fun AppContent() {
-        val navController = rememberNavController()
-        val previewFieldController = rememberPreviewFieldController()
-
-        val isImeSetUp by prefs.internal.isImeSetUp.observeAsState()
-
-        CompositionLocalProvider(
-            LocalNavController provides navController,
-            LocalPreviewFieldController provides previewFieldController,
+        // Empty app content - settings UI removed
+        Column(
+            modifier = Modifier
+                .navigationBarsPadding()
+                .conditional(LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+                    displayCutoutPadding()
+                }
+                .imePadding(),
         ) {
-            ProvideDefaultDialogPrefStrings(
-                confirmLabel = stringRes(R.string.action__ok),
-                dismissLabel = stringRes(R.string.action__cancel),
-                neutralLabel = stringRes(R.string.action__default),
-            ) {
-                Column(
-                    modifier = Modifier
-                        //.statusBarsPadding()
-                        .navigationBarsPadding()
-                        .conditional(LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE) {
-                            displayCutoutPadding()
-                        }
-                        .imePadding(),
-                ) {
-                    Routes.AppNavHost(
-                        modifier = Modifier.weight(1.0f),
-                        navController = navController,
-                        startDestination = if (isImeSetUp) Routes.Settings.Home::class else Routes.Setup.Screen::class,
-                    )
-                    PreviewKeyboardField(previewFieldController)
-                }
-            }
-        }
-
-        LaunchedEffect(intentToBeHandled) {
-            val intent = intentToBeHandled
-            if (intent != null) {
-                if (intent.action == Intent.ACTION_VIEW && intent.categories?.contains(Intent.CATEGORY_BROWSABLE) == true) {
-                    navController.handleDeepLink(intent)
-                } else {
-                    val data = if (intent.action == Intent.ACTION_VIEW) {
-                        intent.data!!
-                    } else {
-                        intent.clipData!!.getItemAt(0).uri
-                    }
-                    val workspace = runCatching { cacheManager.readFromUriIntoCache(data) }.getOrNull()
-                    navController.navigate(Routes.Ext.Import(ExtensionImportScreenType.EXT_ANY, workspace?.uuid))
-                }
-            }
-            intentToBeHandled = null
+            // Blank page
         }
     }
 }

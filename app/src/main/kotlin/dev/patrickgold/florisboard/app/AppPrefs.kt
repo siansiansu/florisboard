@@ -23,9 +23,6 @@ import androidx.compose.ui.platform.LocalConfiguration
 import dev.patrickgold.florisboard.app.settings.theme.ColorPreferenceSerializer
 import dev.patrickgold.florisboard.app.settings.theme.DisplayKbdAfterDialogs
 import dev.patrickgold.florisboard.app.settings.theme.SnyggLevel
-import dev.patrickgold.florisboard.app.setup.NotificationPermissionState
-import dev.patrickgold.florisboard.ime.clipboard.CLIPBOARD_HISTORY_NUM_GRID_COLUMNS_AUTO
-import dev.patrickgold.florisboard.ime.clipboard.ClipboardSyncBehavior
 import dev.patrickgold.florisboard.ime.core.DisplayLanguageNamesIn
 import dev.patrickgold.florisboard.ime.core.Subtype
 import dev.patrickgold.florisboard.ime.input.CapitalizationBehavior
@@ -33,20 +30,10 @@ import dev.patrickgold.florisboard.ime.input.HapticVibrationMode
 import dev.patrickgold.florisboard.ime.input.InputFeedbackActivationMode
 import dev.patrickgold.florisboard.ime.keyboard.IncognitoMode
 import dev.patrickgold.florisboard.ime.keyboard.SpaceBarMode
-import dev.patrickgold.florisboard.ime.landscapeinput.LandscapeInputUiMode
 import dev.patrickgold.florisboard.ime.media.emoji.EmojiHairStyle
 import dev.patrickgold.florisboard.ime.media.emoji.EmojiHistory
 import dev.patrickgold.florisboard.ime.media.emoji.EmojiSkinTone
 import dev.patrickgold.florisboard.ime.media.emoji.EmojiSuggestionType
-import dev.patrickgold.florisboard.ime.nlp.SpellingLanguageMode
-import dev.patrickgold.florisboard.ime.onehanded.OneHandedMode
-import dev.patrickgold.florisboard.ime.smartbar.CandidatesDisplayMode
-import dev.patrickgold.florisboard.ime.smartbar.ExtendedActionsPlacement
-import dev.patrickgold.florisboard.ime.smartbar.IncognitoDisplayMode
-import dev.patrickgold.florisboard.ime.smartbar.SmartbarLayout
-import dev.patrickgold.florisboard.ime.smartbar.quickaction.QuickAction
-import dev.patrickgold.florisboard.ime.smartbar.quickaction.QuickActionArrangement
-import dev.patrickgold.florisboard.ime.smartbar.quickaction.QuickActionJsonConfig
 import dev.patrickgold.florisboard.ime.text.gestures.SwipeAction
 import dev.patrickgold.florisboard.ime.text.key.KeyCode
 import dev.patrickgold.florisboard.ime.text.key.KeyHintConfiguration
@@ -54,8 +41,6 @@ import dev.patrickgold.florisboard.ime.text.key.KeyHintMode
 import dev.patrickgold.florisboard.ime.text.key.UtilityKeyAction
 import dev.patrickgold.florisboard.ime.text.keyboard.TextKeyData
 import dev.patrickgold.florisboard.ime.theme.ThemeMode
-import dev.patrickgold.florisboard.ime.theme.extCoreTheme
-import dev.patrickgold.florisboard.lib.ext.ExtensionComponentName
 import dev.patrickgold.florisboard.lib.observeAsTransformingState
 import dev.patrickgold.florisboard.lib.util.VersionName
 import dev.patrickgold.jetpref.datastore.annotations.Preferences
@@ -80,86 +65,6 @@ abstract class FlorisPreferenceModel : PreferenceModel() {
         const val NAME = "florisboard-app-prefs"
     }
 
-    val clipboard = Clipboard()
-    inner class Clipboard {
-        val useInternalClipboard = boolean(
-            key = "clipboard__use_internal_clipboard",
-            default = false,
-        )
-        val syncToFloris = enum(
-            key = "clipboard__sync_to_floris",
-            default = ClipboardSyncBehavior.ALL_EVENTS,
-        )
-        val syncToSystem = enum(
-            key = "clipboard__sync_to_system",
-            default = ClipboardSyncBehavior.NO_EVENTS,
-        )
-        val suggestionEnabled = boolean(
-            key = "clipboard__suggestion_enabled",
-            default = true,
-        )
-        val suggestionTimeout = int(
-            key = "clipboard__suggestion_timeout",
-            default = 60,
-        )
-        val historyEnabled = boolean(
-            key = "clipboard__history_enabled",
-            default = false,
-        )
-        val historyNumGridColumnsPortrait = int(
-            key = "clipboard__history_num_grid_columns_portrait",
-            default = CLIPBOARD_HISTORY_NUM_GRID_COLUMNS_AUTO,
-        )
-        val historyNumGridColumnsLandscape = int(
-            key = "clipboard__history_num_grid_columns_landscape",
-            default = CLIPBOARD_HISTORY_NUM_GRID_COLUMNS_AUTO,
-        )
-        @Composable
-        fun historyNumGridColumns(): PreferenceData<Int> {
-            val configuration = LocalConfiguration.current
-            return if (configuration.isOrientationPortrait()) {
-                historyNumGridColumnsPortrait
-            } else {
-                historyNumGridColumnsLandscape
-            }
-        }
-        val historyAutoCleanOldEnabled = boolean(
-            key = "clipboard__history_auto_clean_old_enabled",
-            default = false,
-        )
-        val historyAutoCleanOldAfter = int(
-            key = "clipboard__history_auto_clean_old_after",
-            default = 20,
-        )
-        val historyAutoCleanSensitiveEnabled = boolean(
-            key = "clipboard__history_auto_clean_sensitive_enabled",
-            default = false,
-        )
-        val historyAutoCleanSensitiveAfter = int(
-            key = "clipboard__history_auto_clean_sensitive_after",
-            default = 20,
-        )
-        val historySizeLimitEnabled = boolean(
-            key = "clipboard__history_size_limit_enabled",
-            default = true,
-        )
-        val historySizeLimit = int(
-            key = "clipboard__history_size_limit",
-            default = 20,
-        )
-        val historyHideOnPaste = boolean(
-            key = "clipboard__history_hide_on_paste",
-            default = false,
-        )
-        val historyHideOnNextTextField = boolean(
-            key = "clipboard__history_hide_on_next_text_field",
-            default = true,
-        )
-        val clearPrimaryClipAffectsHistoryIfUnpinned = boolean(
-            key = "clipboard__clear_primary_clip_affects_history_if_unpinned",
-            default = true,
-        )
-    }
 
     val correction = Correction()
     inner class Correction {
@@ -181,49 +86,9 @@ abstract class FlorisPreferenceModel : PreferenceModel() {
         )
     }
 
-    val devtools = Devtools()
-    inner class Devtools {
-        val enabled = boolean(
-            key = "devtools__enabled",
-            default = false,
-        )
-        val showPrimaryClip = boolean(
-            key = "devtools__show_primary_clip",
-            default = false,
-        )
-        val showInputStateOverlay = boolean(
-            key = "devtools__show_input_state_overlay",
-            default = false,
-        )
-        val showSpellingOverlay = boolean(
-            key = "devtools__show_spelling_overlay",
-            default = false,
-        )
-        val showInlineAutofillOverlay = boolean(
-            key = "devtools__show_inline_autofill_overlay",
-            default = false,
-        )
-        val showKeyTouchBoundaries = boolean(
-            key = "devtools__show_touch_boundaries",
-            default = false,
-        )
-        val showDragAndDropHelpers = boolean(
-            key = "devtools__show_drag_and_drop_helpers",
-            default = false,
-        )
-    }
+    // Devtools module removed
 
-    val dictionary = Dictionary()
-    inner class Dictionary {
-        val enableSystemUserDictionary = boolean(
-            key = "suggestion__enable_system_user_dictionary",
-            default = true,
-        )
-        val enableFlorisUserDictionary = boolean(
-            key = "suggestion__enable_floris_user_dictionary",
-            default = true,
-        )
-    }
+    // Dictionary module removed
 
     val emoji = Emoji()
     inner class Emoji {
@@ -338,33 +203,7 @@ abstract class FlorisPreferenceModel : PreferenceModel() {
         )
     }
 
-    val glide = Glide()
-    inner class Glide {
-        val enabled = boolean(
-            key = "glide__enabled",
-            default = false,
-        )
-        val showTrail = boolean(
-            key = "glide__show_trail",
-            default = true,
-        )
-        val trailDuration = int(
-            key = "glide__trail_fade_duration",
-            default = 200,
-        )
-        val showPreview = boolean(
-            key = "glide__show_preview",
-            default = true,
-        )
-        val previewRefreshDelay = int(
-            key = "glide__preview_refresh_delay",
-            default = 150,
-        )
-        val immediateBackspaceDeletesWord = boolean(
-            key = "glide__immediate_backspace_deletes_word",
-            default = true,
-        )
-    }
+    // Glide typing module removed
 
     val inputFeedback = InputFeedback()
     inner class InputFeedback {
@@ -449,10 +288,6 @@ abstract class FlorisPreferenceModel : PreferenceModel() {
             key = "internal__home_is_beta_toolbox_collapsed_040a01",
             default = false,
         )
-        val isImeSetUp = boolean(
-            key = "internal__is_ime_set_up",
-            default = false,
-        )
         val versionOnInstall = string(
             key = "internal__version_on_install",
             default = VersionName.DEFAULT_RAW,
@@ -464,10 +299,6 @@ abstract class FlorisPreferenceModel : PreferenceModel() {
         val versionLastChangelog = string(
             key = "internal__version_last_changelog",
             default = VersionName.DEFAULT_RAW,
-        )
-        val notificationPermissionState = enum(
-            key = "internal__notification_permission_state",
-            default = NotificationPermissionState.NOT_SET,
         )
     }
 
@@ -517,22 +348,8 @@ abstract class FlorisPreferenceModel : PreferenceModel() {
             key = "keyboard__font_size_multiplier_landscape",
             default = 100,
         )
-        val oneHandedMode = enum(
-            key = "keyboard__one_handed_mode",
-            default = OneHandedMode.END,
-        )
-        val oneHandedModeEnabled = boolean(
-            key = "keyboard__one_handed_mode_enabled",
-            default = false,
-        )
-        val oneHandedModeScaleFactor = int(
-            key = "keyboard__one_handed_mode_scale_factor",
-            default = 87,
-        )
-        val landscapeInputUiMode = enum(
-            key = "keyboard__landscape_input_ui_mode",
-            default = LandscapeInputUiMode.DYNAMICALLY_SHOW,
-        )
+        // OneHandedMode removed
+        // LandscapeInputUiMode removed
         val heightFactorPortrait = int(
             key = "keyboard__height_factor_portrait",
             default = 100,
@@ -573,10 +390,7 @@ abstract class FlorisPreferenceModel : PreferenceModel() {
             key = "keyboard__space_bar_switches_to_characters",
             default = true,
         )
-        val incognitoDisplayMode = enum(
-            key = "keyboard__incognito_indicator",
-            default = IncognitoDisplayMode.DISPLAY_BEHIND_KEYBOARD,
-        )
+        // IncognitoDisplayMode removed (smartbar module deleted)
 
         fun keyHintConfiguration(): KeyHintConfiguration {
             return KeyHintConfiguration(
@@ -595,19 +409,13 @@ abstract class FlorisPreferenceModel : PreferenceModel() {
         @Composable
         fun fontSizeMultiplier(): Float {
             val configuration = LocalConfiguration.current
-            val oneHandedModeEnabled by oneHandedModeEnabled.observeAsState()
-            val oneHandedModeFactor by oneHandedModeScaleFactor.observeAsTransformingState { it / 100.0f }
+            // OneHandedMode removed - simplified calculation
             val fontSizeMultiplierBase by if (configuration.isOrientationPortrait()) {
                 fontSizeMultiplierPortrait
             } else {
                 fontSizeMultiplierLandscape
             }.observeAsTransformingState { it / 100.0f }
-            val fontSizeMultiplier = fontSizeMultiplierBase * if (oneHandedModeEnabled && configuration.isOrientationPortrait()) {
-                oneHandedModeFactor
-            } else {
-                1.0f
-            }
-            return fontSizeMultiplier
+            return fontSizeMultiplierBase
         }
     }
 
@@ -663,92 +471,11 @@ abstract class FlorisPreferenceModel : PreferenceModel() {
         )
     }
 
-    val smartbar = Smartbar()
-    inner class Smartbar {
-        val enabled = boolean(
-            key = "smartbar__enabled",
-            default = true,
-        )
-        val layout = enum(
-            key = "smartbar__layout",
-            default = SmartbarLayout.SUGGESTIONS_ACTIONS_SHARED,
-        )
-        val actionArrangement = custom(
-            key = "smartbar__action_arrangement",
-            default = QuickActionArrangement.Default,
-            serializer = QuickActionArrangement.Serializer,
-        )
-        val flipToggles = boolean(
-            key = "smartbar__flip_toggles",
-            default = false,
-        )
-        val sharedActionsExpanded = boolean(
-            key = "smartbar__shared_actions_expanded",
-            default = false,
-        )
-        @Deprecated("Always enabled due to UX issues")
-        val sharedActionsAutoExpandCollapse = boolean(
-            key = "smartbar__shared_actions_auto_expand_collapse",
-            default = true,
-        )
-        val sharedActionsExpandWithAnimation = boolean(
-            key = "smartbar__shared_actions_expand_with_animation",
-            default = true,
-        )
-        val extendedActionsExpanded = boolean(
-            key = "smartbar__extended_actions_expanded",
-            default = false,
-        )
-        val extendedActionsPlacement = enum(
-            key = "smartbar__extended_actions_placement",
-            default = ExtendedActionsPlacement.ABOVE_CANDIDATES,
-        )
-    }
+    // Smartbar module removed
 
-    val spelling = Spelling()
-    inner class Spelling {
-        val languageMode = enum(
-            key = "spelling__language_mode",
-            default = SpellingLanguageMode.USE_KEYBOARD_SUBTYPES,
-        )
-        val useContacts = boolean(
-            key = "spelling__use_contacts",
-            default = true,
-        )
-        val useUdmEntries = boolean(
-            key = "spelling__use_udm_entries",
-            default = true,
-        )
-    }
+    // Spelling module removed (NLP)
 
-    val suggestion = Suggestion()
-    inner class Suggestion {
-        val api30InlineSuggestionsEnabled = boolean(
-            key = "suggestion__api30_inline_suggestions_enabled",
-            default = true,
-        )
-        val enabled = boolean(
-            key = "suggestion__enabled",
-            default = false,
-        )
-        val displayMode = enum(
-            key = "suggestion__display_mode",
-            default = CandidatesDisplayMode.DYNAMIC_SCROLLABLE,
-        )
-        val blockPossiblyOffensive = boolean(
-            key = "suggestion__block_possibly_offensive",
-            default = true,
-        )
-        val incognitoMode = enum(
-            key = "suggestion__incognito_mode",
-            default = IncognitoMode.DYNAMIC_ON_OFF,
-        )
-        // Internal pref
-        val forceIncognitoModeFromDynamic = boolean(
-            key = "suggestion__force_incognito_mode_from_dynamic",
-            default = false,
-        )
-    }
+    // Suggestion module removed (NLP/Smartbar)
 
     val theme = Theme()
     inner class Theme {
@@ -756,16 +483,7 @@ abstract class FlorisPreferenceModel : PreferenceModel() {
             key = "theme__mode",
             default = ThemeMode.FOLLOW_SYSTEM,
         )
-        val dayThemeId = custom(
-            key = "theme__day_theme_id",
-            default = extCoreTheme("floris_day"),
-            serializer = ExtensionComponentName.Serializer,
-        )
-        val nightThemeId = custom(
-            key = "theme__night_theme_id",
-            default = extCoreTheme("floris_night"),
-            serializer = ExtensionComponentName.Serializer,
-        )
+        // Extension system removed - themes will use built-in defaults
         val accentColor = custom(
             key = "theme__accent_color",
             default = when (AndroidVersion.ATLEAST_API31_S) {
@@ -827,56 +545,15 @@ abstract class FlorisPreferenceModel : PreferenceModel() {
             "advanced__show_app_icon" -> {
                 entry.transform(key = "other__show_app_icon")
             }
-            "advanced__incognito_mode" -> {
-                entry.transform(key = "suggestion__incognito_mode")
-            }
-            "advanced__force_incognito_mode_from_dynamic" -> {
-                entry.transform(key = "suggestion__force_incognito_mode_from_dynamic")
-            }
-            // Migrate clipboard suggestion prefs to clipboard
-            // Keep migration rules until: 0.7 dev cycle
-            "suggestion__clipboard_content_enabled" -> {
-                entry.transform(key = "clipboard__suggestion_enabled")
-            }
-            "suggestion__clipboard_content_timeout" -> {
-                entry.transform(key = "clipboard__suggestion_timeout")
-            }
-
-            //Migrate one hand mode prefs keep until: 0.7 dev cycle
-            "keyboard__one_handed_mode" -> {
-                if (entry.rawValue == "OFF") {
-                    entry.reset()
-                } else {
-                    entry.keepAsIs()
-                }
-            }
+            // Removed migration rules for deleted modules:
+            // - suggestion__incognito_mode (suggestion module removed)
+            // - keyboard__one_handed_mode (onehanded module removed)
+            // - smartbar__action_arrangement (smartbar module removed)
+            "advanced__incognito_mode",
+            "advanced__force_incognito_mode_from_dynamic",
+            "keyboard__one_handed_mode",
             "smartbar__action_arrangement" -> {
-                fun migrateAction(action: QuickAction): QuickAction {
-                    return if (action is QuickAction.InsertKey && action.data.code == KeyCode.COMPACT_LAYOUT_TO_RIGHT) {
-                        action.copy(TextKeyData.TOGGLE_COMPACT_LAYOUT)
-                    } else {
-                        action
-                    }
-                }
-
-                val arrangement = QuickActionJsonConfig.decodeFromString<QuickActionArrangement>(entry.rawValue)
-                var newArrangement = arrangement.copy(
-                    stickyAction = arrangement.stickyAction?.let{ migrateAction(it) },
-                    dynamicActions = arrangement.dynamicActions.map { migrateAction(it) },
-                    hiddenActions = arrangement.hiddenActions.map { migrateAction(it) },
-                )
-                if (QuickAction.InsertKey(TextKeyData.LANGUAGE_SWITCH) !in newArrangement) {
-                    newArrangement = newArrangement.copy(
-                        dynamicActions = newArrangement.dynamicActions.plus(QuickAction.InsertKey(TextKeyData.LANGUAGE_SWITCH))
-                    )
-                }
-                if (QuickAction.InsertKey(TextKeyData.FORWARD_DELETE) !in newArrangement) {
-                    newArrangement = newArrangement.copy(
-                        dynamicActions = newArrangement.dynamicActions.plus(QuickAction.InsertKey(TextKeyData.FORWARD_DELETE))
-                    )
-                }
-                val json = QuickActionJsonConfig.encodeToString(newArrangement.distinct())
-                entry.transform(rawValue = json)
+                entry.reset() // Reset to default since module was removed
             }
 
             // Migrate theme editor fine-tuning
@@ -890,45 +567,6 @@ abstract class FlorisPreferenceModel : PreferenceModel() {
                     key = "theme__editor_color_representation",
                     rawValue = colorRepresentation.name,
                 )
-            }
-
-            // Migrate clipboard history pref names
-            // Keep migration rules until: 0.7 dev cycle
-            "clipboard__sync_to_floris", "clipboard__sync_to_system" -> {
-                entry.transform(
-                    type = PreferenceType.string(),
-                    rawValue = when (entry.rawValue) {
-                        "true" -> ClipboardSyncBehavior.ALL_EVENTS
-                        else -> ClipboardSyncBehavior.NO_EVENTS
-                    }.name,
-                )
-            }
-            "clipboard__num_history_grid_columns_portrait" -> {
-                entry.transform(key = "clipboard__history_num_grid_columns_portrait")
-            }
-            "clipboard__num_history_grid_columns_landscape" -> {
-                entry.transform(key = "clipboard__history_num_grid_columns_landscape")
-            }
-            "clipboard__clean_up_old" -> {
-                entry.transform(key = "clipboard__history_auto_clean_old_enabled")
-            }
-            "clipboard__clean_up_after" -> {
-                entry.transform(key = "clipboard__history_auto_clean_old_after")
-            }
-            "clipboard__auto_clean_sensitive" -> {
-                entry.transform(key = "clipboard__history_auto_clean_sensitive_enabled")
-            }
-            "clipboard__auto_clean_sensitive_after" -> {
-                entry.transform(key = "clipboard__history_auto_clean_sensitive_after")
-            }
-            "clipboard__limit_history_size" -> {
-                entry.transform(key = "clipboard__history_size_limit_enabled")
-            }
-            "clipboard__max_history_size" -> {
-                entry.transform(key = "clipboard__history_size_limit")
-            }
-            "clipboard__clear_primary_clip_deletes_last_item" -> {
-                entry.transform(key = "clipboard__clear_primary_clip_affects_history_if_unpinned")
             }
 
             // Default: keep entry
